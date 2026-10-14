@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let attempts = 0;
     let noButtonMoved = false;
+    let yesClicked = false;
 
     const teasingMessages = [
         "정말 확실해? 🤨",
@@ -18,8 +19,57 @@ document.addEventListener("DOMContentLoaded", () => {
         "너무 늦었어… 💋"
     ];
 
+    // Enregistrement de la réponse dans la base de données
+    async function enregistrerDecision(reponse) {
+        const data = new URLSearchParams();
+        data.append("reponse", reponse);
+
+        try {
+            const response = await fetch("save_decision.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/x-www-form-urlencoded"
+                },
+                body: data.toString()
+            });
+
+            if (!response.ok) {
+                throw new Error("Erreur HTTP " + response.status);
+            }
+
+            const resultat = await response.json();
+
+            if (!resultat.success) {
+                throw new Error(
+                    resultat.error || "Échec de l'enregistrement"
+                );
+            }
+
+            console.log("Décision enregistrée :", reponse);
+            return true;
+
+        } catch (error) {
+            console.error(
+                "Erreur lors de l'enregistrement :",
+                error
+            );
+            return false;
+        }
+    }
+
     // Le bouton "Oui"
-    yesButton.addEventListener("click", () => {
+    yesButton.addEventListener("click", async () => {
+        // Évite les doubles clics sur Oui
+        if (yesClicked) return;
+        yesClicked = true;
+
+        yesButton.disabled = true;
+
+        // Enregistrement en base de données
+        const sauvegarde = enregistrerDecision("oui");
+
+        // Message romantique
         alert(
             "고마워, 진심으로. ❤️\n\n" +
             "사랑해.\n" +
@@ -27,34 +77,53 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
         createHearts(24);
+
+        // Attend la fin de la requête sans bloquer l'alerte
+        const succes = await sauvegarde;
+
+        if (!succes) {
+            console.error(
+                "La réponse Oui n'a pas pu être enregistrée."
+            );
+        }
     });
 
     // Le bouton "Non"
     noButton.addEventListener("click", (event) => {
         event.preventDefault();
 
+        // Chaque clic sur Non est enregistré
+        enregistrerDecision("non");
+
         attempts++;
 
         if (attempts === 1) {
             message.textContent = teasingMessages[0];
+
         } else if (attempts === 2) {
             message.textContent = teasingMessages[1];
+
         } else if (attempts === 3) {
             message.textContent = teasingMessages[2];
+
         } else if (attempts === 4) {
             message.textContent = teasingMessages[3];
+
         } else {
-            // Cinquième tentative : le bouton disparaît.
+            // Cinquième tentative : le bouton disparaît
             message.textContent = teasingMessages[4];
+
             noButton.classList.add("gone");
             noButton.setAttribute("aria-hidden", "true");
 
-            // Petit délai avant le message final.
+            // Petit délai avant le message final
             window.setTimeout(() => {
                 message.textContent = teasingMessages[5];
+
                 message.classList.remove("change");
                 void message.offsetWidth;
                 message.classList.add("change");
+
                 createHearts(16);
             }, 1400);
 
@@ -72,10 +141,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const stageRect = stage.getBoundingClientRect();
         const buttonRect = noButton.getBoundingClientRect();
 
-        // On mémorise la position visuelle avant le passage en absolute.
+        // Mémorise la position avant le passage en absolute
         if (!noButtonMoved) {
             noButton.style.left =
                 `${buttonRect.left - stageRect.left}px`;
+
             noButton.style.top =
                 `${buttonRect.top - stageRect.top}px`;
 
@@ -84,10 +154,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const padding = 4;
+
         const maxX = Math.max(
             padding,
             stage.clientWidth - noButton.offsetWidth - padding
         );
+
         const maxY = Math.max(
             padding,
             stage.clientHeight - noButton.offsetHeight - padding
@@ -97,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let y;
         let tries = 0;
 
-        // On évite autant que possible de recouvrir le bouton Oui.
+        // Évite autant que possible le bouton Oui
         const yesRect = yesButton.getBoundingClientRect();
 
         do {
@@ -133,12 +205,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function createHearts(count) {
         for (let i = 0; i < count; i++) {
             const heart = document.createElement("span");
+
             heart.className = "floating-heart";
-            heart.textContent = Math.random() > 0.5 ? "♥" : "♡";
+            heart.textContent =
+                Math.random() > 0.5 ? "♥" : "♡";
 
             heart.style.left = `${Math.random() * 100}%`;
-            heart.style.animationDelay = `${Math.random() * 1.2}s`;
-            heart.style.fontSize = `${14 + Math.random() * 22}px`;
+            heart.style.animationDelay =
+                `${Math.random() * 1.2}s`;
+
+            heart.style.fontSize =
+                `${14 + Math.random() * 22}px`;
 
             hearts.appendChild(heart);
 
